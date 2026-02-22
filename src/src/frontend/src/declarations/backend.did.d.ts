@@ -22,12 +22,20 @@ export interface Photo {
 }
 export type Time = bigint;
 export interface _SERVICE {
+  'addPenalty' : ActorMethod<[bigint], undefined>,
+  'checkSuspectGuess' : ActorMethod<[string], boolean>,
   'checkUnlockCode' : ActorMethod<[string], boolean>,
   'deletePhoto' : ActorMethod<[string], undefined>,
   'getAllPhotos' : ActorMethod<[], Array<Photo>>,
   'getAttempts' : ActorMethod<[], Array<AttemptRecord>>,
+  'getGamePhase' : ActorMethod<[], string>,
+  'getRemainingSeconds' : ActorMethod<[], bigint>,
+  'getSuspectList' : ActorMethod<[], Array<string>>,
+  'isTimerRunning' : ActorMethod<[], boolean>,
+  'startNewGame' : ActorMethod<[], undefined>,
+  'stopTimer' : ActorMethod<[], undefined>,
   'storePhoto' : ActorMethod<[string, string, Time], undefined>,
-  'updateUnlockCode' : ActorMethod<[string], undefined>,
+  'toggleTimer' : ActorMethod<[], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

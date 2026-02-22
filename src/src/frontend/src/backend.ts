@@ -101,15 +101,51 @@ export interface Photo {
     timestamp: Time;
 }
 export interface backendInterface {
+    addPenalty(penalty: bigint): Promise<void>;
+    checkSuspectGuess(name: string): Promise<boolean>;
     checkUnlockCode(codeEntered: string): Promise<boolean>;
     deletePhoto(id: string): Promise<void>;
     getAllPhotos(): Promise<Array<Photo>>;
     getAttempts(): Promise<Array<AttemptRecord>>;
+    getGamePhase(): Promise<string>;
+    getRemainingSeconds(): Promise<bigint>;
+    getSuspectList(): Promise<Array<string>>;
+    isTimerRunning(): Promise<boolean>;
+    startNewGame(): Promise<void>;
+    stopTimer(): Promise<void>;
     storePhoto(id: string, imageData: string, timestamp: Time): Promise<void>;
-    updateUnlockCode(newCode: string): Promise<void>;
+    toggleTimer(): Promise<void>;
 }
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
+    async addPenalty(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addPenalty(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addPenalty(arg0);
+            return result;
+        }
+    }
+    async checkSuspectGuess(arg0: string): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.checkSuspectGuess(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.checkSuspectGuess(arg0);
+            return result;
+        }
+    }
     async checkUnlockCode(arg0: string): Promise<boolean> {
         if (this.processError) {
             try {
@@ -166,6 +202,90 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async getGamePhase(): Promise<string> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getGamePhase();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getGamePhase();
+            return result;
+        }
+    }
+    async getRemainingSeconds(): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getRemainingSeconds();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getRemainingSeconds();
+            return result;
+        }
+    }
+    async getSuspectList(): Promise<Array<string>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getSuspectList();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getSuspectList();
+            return result;
+        }
+    }
+    async isTimerRunning(): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.isTimerRunning();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.isTimerRunning();
+            return result;
+        }
+    }
+    async startNewGame(): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.startNewGame();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.startNewGame();
+            return result;
+        }
+    }
+    async stopTimer(): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.stopTimer();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.stopTimer();
+            return result;
+        }
+    }
     async storePhoto(arg0: string, arg1: string, arg2: Time): Promise<void> {
         if (this.processError) {
             try {
@@ -180,17 +300,17 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async updateUnlockCode(arg0: string): Promise<void> {
+    async toggleTimer(): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.updateUnlockCode(arg0);
+                const result = await this.actor.toggleTimer();
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.updateUnlockCode(arg0);
+            const result = await this.actor.toggleTimer();
             return result;
         }
     }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, RefObject } from "react";
 import { 
   FolderOpen, 
   FileText, 
@@ -8,7 +8,8 @@ import {
   ChevronRight,
   Camera as CameraIcon,
   X,
-  AlertCircle
+  AlertCircle,
+  Scale
 } from "lucide-react";
 import { useCamera } from "@/camera/useCamera";
 import {
@@ -31,9 +32,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useGetAttempts, useUpdateUnlockCode, useStorePhoto } from "../hooks/useQueries";
+import { useGetAttempts, useStorePhoto, useGetGamePhase } from "../hooks/useQueries";
 import { toast } from "sonner";
 import EvidenceGallery from "./EvidenceGallery";
+import GameTimer from "./GameTimer";
+import CaseSolutionModal from "./CaseSolutionModal";
+import VictoryScreen from "./VictoryScreen";
+import DefeatScreen from "./DefeatScreen";
 
 interface DesktopItem {
   id: string;
@@ -51,17 +56,25 @@ const desktopItems: DesktopItem[] = [
   { id: "4", name: "Witness Interviews", icon: Video, type: "folder", description: "Video recordings" },
   { id: "5", name: "Case_Report_Final.doc", icon: FileText, type: "file", description: "Detective notes" },
   { id: "6", name: "Suspect_List.txt", icon: FileText, type: "file", description: "Person of interest database" },
+  { id: "7", name: "Rješenje Slučaja", icon: Scale, type: "folder", description: "Suspect identification" },
 ];
 
-export default function Desktop() {
+interface DesktopProps {
+  audioRef: RefObject<HTMLAudioElement | null>;
+}
+
+export default function Desktop({ audioRef }: DesktopProps) {
   const [newCode, setNewCode] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [showEvidence, setShowEvidence] = useState(false);
+  const [showCaseSolution, setShowCaseSolution] = useState(false);
   
   const attemptsQuery = useGetAttempts();
-  const updateCodeMutation = useUpdateUnlockCode();
   const storePhotoMutation = useStorePhoto();
+  const { data: gamePhase } = useGetGamePhase();
+  
+  const isGameComplete = gamePhase === "won" || gamePhase === "lost";
   
   const { 
     isActive, 
@@ -85,19 +98,11 @@ export default function Desktop() {
       return;
     }
 
-    try {
-      await updateCodeMutation.mutateAsync(newCode);
-      toast.success("Code updated successfully", {
-        description: "New unlock code has been set",
-      });
-      setNewCode("");
-      setDialogOpen(false);
-    } catch (error) {
-      toast.error("Failed to update code", {
-        description: "Please try again",
-      });
-      console.error("Error updating code:", error);
-    }
+    toast.info("Update code not implemented", {
+      description: "This feature requires backend support",
+    });
+    setNewCode("");
+    setDialogOpen(false);
   };
 
   const formatTimestamp = (timestamp: bigint) => {
@@ -106,11 +111,15 @@ export default function Desktop() {
   };
 
   const handleDesktopItemClick = async (itemId: string) => {
+    if (isGameComplete) return; // Disable all interactions when game is complete
+    
     if (itemId === "2") { // Evidence
       setShowEvidence(true);
     } else if (itemId === "3") { // Crime Scene Photos
       setShowCamera(true);
       await startCamera();
+    } else if (itemId === "7") { // Rješenje Slučaja
+      setShowCaseSolution(true);
     }
   };
 
@@ -161,12 +170,49 @@ export default function Desktop() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-background animate-boot">
-      {/* Evidence Gallery Overlay */}
-      {showEvidence && <EvidenceGallery onClose={() => setShowEvidence(false)} />}
+    <div className="min-h-screen w-full bg-background animate-boot relative">
+      {/* Game Completion Overlays */}
+      {gamePhase === "won" && <VictoryScreen audioRef={audioRef} />}
+      {gamePhase === "lost" && <DefeatScreen audioRef={audioRef} />}
       
-      {/* Camera View Overlay */}
-      {showCamera && (
+      {/* Desktop Background with overlay */}
+      <div 
+        className="fixed inset-0 z-0"
+        style={{
+          backgroundImage: 'url(/assets/generated/detective-desktop-bg.dim_1920x1080.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }}
+      >
+        {/* Subtle vignette overlay for depth */}
+        <div className="absolute inset-0 bg-gradient-radial from-transparent via-background/40 to-background/80" />
+        {/* Noise texture overlay for vintage feel */}
+        <div className="absolute inset-0 opacity-[0.02] mix-blend-overlay pointer-events-none" 
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`
+          }} 
+        />
+      </div>
+
+      {/* Content wrapper with relative positioning */}
+      <div className="relative z-10">
+        {/* Case Solution Modal */}
+        {showCaseSolution && (
+          <CaseSolutionModal
+            open={showCaseSolution}
+            onClose={() => setShowCaseSolution(false)}
+            onVictory={() => {
+              setShowCaseSolution(false);
+            }}
+          />
+        )}
+        
+        {/* Evidence Gallery Overlay */}
+        {showEvidence && <EvidenceGallery onClose={() => setShowEvidence(false)} />}
+        
+        {/* Camera View Overlay */}
+        {showCamera && (
         <div className="fixed inset-0 z-50 bg-background flex flex-col">
           {/* Camera Header */}
           <header className="border-b border-border bg-card/80 backdrop-blur-sm">
@@ -286,23 +332,44 @@ export default function Desktop() {
         </div>
       )}
 
-      {/* Desktop Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm">
-        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full bg-success animate-pulse" />
-            <h1 className="font-display text-2xl tracking-wider text-primary">
-              DETECTIVE WORKSTATION
-            </h1>
+      {/* Desktop Header - Enhanced Noir Styling */}
+      <header className="border-b-2 border-primary/30 bg-gradient-to-r from-card/95 via-card/98 to-card/95 backdrop-blur-md shadow-lg shadow-primary/10">
+        <div className="container mx-auto px-6 py-5 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            {/* Detective Badge with glow effect */}
+            <div className="relative group">
+              <img 
+                src="/assets/generated/detective-badge-transparent.dim_150x150.png" 
+                alt="Detective Badge"
+                className="w-14 h-14 object-contain transition-all duration-300 drop-shadow-[0_0_8px_rgba(251,191,36,0.4)] group-hover:drop-shadow-[0_0_16px_rgba(251,191,36,0.6)] group-hover:scale-110"
+              />
+              {/* Ambient glow */}
+              <div className="absolute inset-0 bg-primary/20 blur-xl opacity-50 group-hover:opacity-75 transition-opacity duration-300 -z-10" />
+            </div>
+            
+            <div className="flex items-center gap-3 border-l-2 border-primary/40 pl-4">
+              <div className="w-3 h-3 rounded-full bg-success animate-pulse shadow-lg shadow-success/50" />
+              <h1 className="font-display text-2xl tracking-wider text-primary drop-shadow-[0_2px_8px_rgba(251,191,36,0.3)]">
+                DETECTIVE WORKSTATION
+              </h1>
+            </div>
+
+            {/* Integrated Game Timer */}
+            <GameTimer inline />
           </div>
           
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Settings className="w-4 h-4" />
-                <span className="font-mono text-xs">MODERATOR</span>
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center gap-6">
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="gap-2 border-primary/40 bg-card/80 hover:bg-primary/20 hover:border-primary/60 hover:shadow-lg hover:shadow-primary/20 transition-all duration-200"
+                >
+                  <Settings className="w-4 h-4" />
+                  <span className="font-mono text-xs font-semibold">MODERATOR</span>
+                </Button>
+              </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle className="font-display text-xl">Moderator Tools</DialogTitle>
@@ -333,10 +400,10 @@ export default function Desktop() {
                 
                 <Button 
                   onClick={handleUpdateCode}
-                  disabled={updateCodeMutation.isPending || newCode.length !== 6}
+                  disabled={newCode.length !== 6}
                   className="w-full font-display"
                 >
-                  {updateCodeMutation.isPending ? "UPDATING..." : "UPDATE CODE"}
+                  UPDATE CODE
                 </Button>
 
                 <div className="border-t border-border pt-4">
@@ -374,19 +441,20 @@ export default function Desktop() {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
       </header>
 
       {/* Desktop Content */}
       <main className="container mx-auto px-6 py-8">
         {/* Success Message */}
-        <Card className="mb-8 border-success/50 bg-success/5">
+        <Card className="mb-8 border-success/50 bg-success/5 backdrop-blur-sm shadow-lg shadow-success/10">
           <CardHeader>
-            <CardTitle className="font-display text-2xl text-success flex items-center gap-2">
-              <ChevronRight className="w-6 h-6" />
+            <CardTitle className="font-display text-2xl text-success flex items-center gap-2 drop-shadow-[0_2px_4px_rgba(74,222,128,0.3)]">
+              <ChevronRight className="w-6 h-6 animate-pulse" />
               ACCESS GRANTED
             </CardTitle>
-            <CardDescription className="font-mono">
+            <CardDescription className="font-mono text-foreground/80">
               Welcome back, Detective. All case files are now accessible.
             </CardDescription>
           </CardHeader>
@@ -398,7 +466,8 @@ export default function Desktop() {
             <button
               key={item.id}
               onClick={() => handleDesktopItemClick(item.id)}
-              className="group flex flex-col items-center gap-3 p-4 rounded-lg hover:bg-card/50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary"
+              disabled={isGameComplete}
+              className="group flex flex-col items-center gap-3 p-4 rounded-lg hover:bg-card/60 hover:backdrop-blur-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary/50 hover:shadow-lg hover:shadow-primary/10 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
               style={{
                 animationDelay: `${index * 0.1}s`,
               }}
@@ -409,33 +478,33 @@ export default function Desktop() {
                     <img 
                       src={item.customIcon} 
                       alt={item.name}
-                      className="w-16 h-16 object-contain transition-all duration-200 group-hover:scale-110 group-hover:drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]"
+                      className="w-16 h-16 object-contain transition-all duration-300 group-hover:scale-110 group-hover:drop-shadow-[0_0_12px_rgba(251,191,36,0.6)]"
                     />
                     {item.type === "folder" && (
-                      <div className="absolute inset-0 bg-accent/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                      <div className="absolute inset-0 bg-accent/30 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     )}
                   </div>
                 ) : item.icon ? (
                   <>
                     <item.icon 
-                      className={`w-16 h-16 transition-all duration-200 ${
+                      className={`w-16 h-16 transition-all duration-300 ${
                         item.type === "folder" 
-                          ? "text-accent group-hover:text-primary" 
+                          ? "text-accent group-hover:text-primary group-hover:drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" 
                           : "text-primary/70 group-hover:text-primary"
                       }`}
                     />
                     {item.type === "folder" && (
-                      <div className="absolute inset-0 bg-accent/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                      <div className="absolute inset-0 bg-accent/30 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     )}
                   </>
                 ) : null}
               </div>
               <div className="text-center space-y-1">
-                <p className="font-mono text-sm text-foreground group-hover:text-primary transition-colors">
+                <p className="font-mono text-sm text-foreground group-hover:text-primary transition-colors duration-200">
                   {item.name}
                 </p>
                 {item.description && (
-                  <p className="text-xs text-muted-foreground line-clamp-2">
+                  <p className="text-xs text-muted-foreground line-clamp-2 group-hover:text-muted-foreground/80 transition-colors">
                     {item.description}
                   </p>
                 )}
@@ -445,14 +514,14 @@ export default function Desktop() {
         </section>
 
         {/* Footer */}
-        <footer className="mt-16 pt-8 border-t border-border text-center">
+        <footer className="mt-16 pt-8 border-t border-border/50 text-center">
           <p className="font-mono text-xs text-muted-foreground">
             © 2026. Built with love using{" "}
             <a 
               href="https://caffeine.ai" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-primary hover:underline"
+              className="text-primary hover:underline hover:text-primary/80 transition-colors"
             >
               caffeine.ai
             </a>
@@ -462,6 +531,7 @@ export default function Desktop() {
           </p>
         </footer>
       </main>
+      </div>
     </div>
   );
 }

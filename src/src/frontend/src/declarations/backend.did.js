@@ -21,12 +21,20 @@ export const AttemptRecord = IDL.Record({
 });
 
 export const idlService = IDL.Service({
+  'addPenalty' : IDL.Func([IDL.Nat], [], []),
+  'checkSuspectGuess' : IDL.Func([IDL.Text], [IDL.Bool], []),
   'checkUnlockCode' : IDL.Func([IDL.Text], [IDL.Bool], []),
   'deletePhoto' : IDL.Func([IDL.Text], [], []),
   'getAllPhotos' : IDL.Func([], [IDL.Vec(Photo)], ['query']),
   'getAttempts' : IDL.Func([], [IDL.Vec(AttemptRecord)], ['query']),
+  'getGamePhase' : IDL.Func([], [IDL.Text], ['query']),
+  'getRemainingSeconds' : IDL.Func([], [IDL.Nat], []),
+  'getSuspectList' : IDL.Func([], [IDL.Vec(IDL.Text)], ['query']),
+  'isTimerRunning' : IDL.Func([], [IDL.Bool], ['query']),
+  'startNewGame' : IDL.Func([], [], []),
+  'stopTimer' : IDL.Func([], [], []),
   'storePhoto' : IDL.Func([IDL.Text, IDL.Text, Time], [], []),
-  'updateUnlockCode' : IDL.Func([IDL.Text], [], []),
+  'toggleTimer' : IDL.Func([], [], []),
 });
 
 export const idlInitArgs = [];
@@ -45,12 +53,20 @@ export const idlFactory = ({ IDL }) => {
   });
   
   return IDL.Service({
+    'addPenalty' : IDL.Func([IDL.Nat], [], []),
+    'checkSuspectGuess' : IDL.Func([IDL.Text], [IDL.Bool], []),
     'checkUnlockCode' : IDL.Func([IDL.Text], [IDL.Bool], []),
     'deletePhoto' : IDL.Func([IDL.Text], [], []),
     'getAllPhotos' : IDL.Func([], [IDL.Vec(Photo)], ['query']),
     'getAttempts' : IDL.Func([], [IDL.Vec(AttemptRecord)], ['query']),
+    'getGamePhase' : IDL.Func([], [IDL.Text], ['query']),
+    'getRemainingSeconds' : IDL.Func([], [IDL.Nat], []),
+    'getSuspectList' : IDL.Func([], [IDL.Vec(IDL.Text)], ['query']),
+    'isTimerRunning' : IDL.Func([], [IDL.Bool], ['query']),
+    'startNewGame' : IDL.Func([], [], []),
+    'stopTimer' : IDL.Func([], [], []),
     'storePhoto' : IDL.Func([IDL.Text, IDL.Text, Time], [], []),
-    'updateUnlockCode' : IDL.Func([IDL.Text], [], []),
+    'toggleTimer' : IDL.Func([], [], []),
   });
 };
 

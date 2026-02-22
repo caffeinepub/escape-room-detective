@@ -19,10 +19,18 @@ export interface Photo {
     timestamp: Time;
 }
 export interface backendInterface {
+    addPenalty(penalty: bigint): Promise<void>;
+    checkSuspectGuess(name: string): Promise<boolean>;
     checkUnlockCode(codeEntered: string): Promise<boolean>;
     deletePhoto(id: string): Promise<void>;
     getAllPhotos(): Promise<Array<Photo>>;
     getAttempts(): Promise<Array<AttemptRecord>>;
+    getGamePhase(): Promise<string>;
+    getRemainingSeconds(): Promise<bigint>;
+    getSuspectList(): Promise<Array<string>>;
+    isTimerRunning(): Promise<boolean>;
+    startNewGame(): Promise<void>;
+    stopTimer(): Promise<void>;
     storePhoto(id: string, imageData: string, timestamp: Time): Promise<void>;
-    updateUnlockCode(newCode: string): Promise<void>;
+    toggleTimer(): Promise<void>;
 }
