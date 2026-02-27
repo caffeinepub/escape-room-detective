@@ -8,8 +8,6 @@ import Runtime "mo:core/Runtime";
 
 import Int "mo:core/Int";
 
-// RUN MIGRATION ON UPGRADE
-
 actor {
   type Photo = {
     id : Text;
@@ -118,57 +116,43 @@ actor {
     };
   };
 
+  func computeRemainingSeconds(t : TimerState) : Nat {
+    if (t.isRunning) {
+      let elapsed = Time.now() - t.startTime;
+      switch (Int.compare(elapsed, 0)) {
+        case (#less) { return 0 };
+        case (#equal) { return t.remainingTimeAtLastStart };
+        case (#greater) {
+          let elapsedNat = elapsed.toNat();
+          let lostTime = elapsedNat / 1_000_000_000;
+          if (t.remainingTimeAtLastStart > lostTime) {
+            let remaining = t.remainingTimeAtLastStart - lostTime;
+            return Nat.min(remaining, 2400);
+          } else {
+            return 0;
+          };
+        };
+      };
+    } else {
+      return t.remainingTimeAtLastStart;
+    };
+  };
+
   public shared ({ caller }) func getRemainingSeconds() : async Nat {
     switch (timer) {
       case (null) { 0 };
-      case (?t) {
-        if (t.isRunning) {
-          let elapsed = Time.now() - t.startTime;
-          switch (Int.compare(elapsed, 0)) {
-            case (#less) { return 0 };
-            case (#equal) { return t.remainingTimeAtLastStart };
-            case (#greater) {
-              let elapsedNat = elapsed.toNat();
-              let lostTime = elapsedNat / 1_000_000_000;
-              if (t.remainingTimeAtLastStart > lostTime) {
-                let remaining = t.remainingTimeAtLastStart - lostTime;
-                return Nat.min(remaining, 2400);
-              } else {
-                return 0;
-              };
-            };
-          };
-        } else {
-          return t.remainingTimeAtLastStart;
-        };
-      };
+      case (?t) { computeRemainingSeconds(t) };
     };
   };
 
   public shared ({ caller }) func addPenalty(penalty : Nat) : async () {
+    // Only allow penalty of 300 seconds.
     if (penalty == 300) {
       switch (timer) {
         case (null) { () };
         case (?t) {
           let now = Time.now();
-          let remainingAtAction = if (t.isRunning) {
-            let elapsedSinceStart = now - t.startTime;
-            switch (Int.compare(elapsedSinceStart, 0)) {
-              case (#less) { t.remainingTimeAtLastStart };
-              case (#equal) { t.remainingTimeAtLastStart };
-              case (#greater) {
-                let elapsedNat = elapsedSinceStart.toNat();
-                let lostTime = elapsedNat / 1_000_000_000;
-                if (t.remainingTimeAtLastStart > lostTime) {
-                  t.remainingTimeAtLastStart - lostTime;
-                } else {
-                  0;
-                };
-              };
-            };
-          } else {
-            t.remainingTimeAtLastStart;
-          };
+          let remainingAtAction = computeRemainingSeconds(t);
           let newRemaining = if (remainingAtAction >= penalty) {
             Nat.min(2400, remainingAtAction - penalty);
           } else {
@@ -177,42 +161,6 @@ actor {
 
           timer := ?{
             startTime = now;
-            remainingTimeAtLastStart = newRemaining;
-            isRunning = t.isRunning;
-          };
-        };
-      };
-    } else if (penalty > 0) {
-      switch (timer) {
-        case (null) { () };
-        case (?t) {
-          let now = Time.now();
-          let remainingAtPenalty = if (t.isRunning) {
-            let elapsed = now - t.startTime;
-            switch (Int.compare(elapsed, 0)) {
-              case (#less) { t.remainingTimeAtLastStart };
-              case (#equal) { t.remainingTimeAtLastStart };
-              case (#greater) {
-                let elapsedNat = elapsed.toNat();
-                let lostTime = elapsedNat / 1_000_000_000;
-                if (t.remainingTimeAtLastStart > lostTime) {
-                  t.remainingTimeAtLastStart - lostTime;
-                } else {
-                  0;
-                };
-              };
-            };
-          } else {
-            t.remainingTimeAtLastStart;
-          };
-          let newRemaining = if (remainingAtPenalty >= penalty) {
-            remainingAtPenalty - penalty;
-          } else {
-            0;
-          };
-
-          timer := ?{
-            startTime = Time.now();
             remainingTimeAtLastStart = newRemaining;
             isRunning = t.isRunning;
           };
@@ -228,7 +176,7 @@ actor {
         if (t.isRunning) {
           let newTimerState : TimerState = {
             startTime = t.startTime;
-            remainingTimeAtLastStart = await getRemainingSeconds();
+            remainingTimeAtLastStart = computeRemainingSeconds(t);
             isRunning = false;
           };
           timer := ?newTimerState;
@@ -259,7 +207,7 @@ actor {
         case (?lastTimerState) {
           let newTimerState : TimerState = {
             startTime = lastTimerState.startTime;
-            remainingTimeAtLastStart = await getRemainingSeconds();
+            remainingTimeAtLastStart = computeRemainingSeconds(lastTimerState);
             isRunning = false;
           };
           timer := ?newTimerState;

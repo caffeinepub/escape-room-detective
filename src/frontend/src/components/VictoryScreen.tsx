@@ -1,5 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { RotateCcw } from "lucide-react";
 import { type RefObject, useEffect } from "react";
+import { toast } from "sonner";
 import { useActor } from "../hooks/useActor";
 
 interface VictoryScreenProps {
@@ -8,6 +11,7 @@ interface VictoryScreenProps {
 
 export default function VictoryScreen({ audioRef }: VictoryScreenProps) {
   const { actor } = useActor();
+  const queryClient = useQueryClient();
 
   // Stop music when victory screen appears
   useEffect(() => {
@@ -25,6 +29,20 @@ export default function VictoryScreen({ audioRef }: VictoryScreenProps) {
     enabled: !!actor,
   });
 
+  const resetGameMutation = useMutation({
+    mutationFn: async () => {
+      if (!actor) throw new Error("Actor not initialized");
+      return actor.startNewGame();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+      toast.success("Nova igra", {
+        description: "Pokretanje nove istrage...",
+      });
+      setTimeout(() => window.location.reload(), 1000);
+    },
+  });
+
   const seconds = Number(remainingSeconds || 0n);
   const minutes = Math.floor(seconds / 60);
   const secs = seconds % 60;
@@ -40,7 +58,7 @@ export default function VictoryScreen({ audioRef }: VictoryScreenProps) {
 
       {/* Content */}
       <div className="relative z-10 text-center space-y-8 px-4">
-        {/* Main Victory Text - Larger */}
+        {/* Main Victory Text */}
         <h1 className="font-display text-7xl md:text-9xl lg:text-[12rem] font-bold text-primary drop-shadow-[0_0_40px_rgba(251,191,36,0.9)] animate-in slide-in-from-top duration-700 leading-tight">
           SLUČAJ RIJEŠEN!
         </h1>
@@ -48,7 +66,7 @@ export default function VictoryScreen({ audioRef }: VictoryScreenProps) {
         {/* Time Display */}
         <div className="inline-block px-12 py-6 bg-card/80 backdrop-blur-sm border-2 border-primary rounded-xl shadow-2xl shadow-primary/40 animate-in zoom-in duration-500 delay-300">
           <p className="font-mono text-sm text-muted-foreground uppercase tracking-wider mb-3">
-            Vrijeme
+            Preostalo vrijeme
           </p>
           <p className="font-mono text-5xl font-bold text-primary drop-shadow-lg">
             {formattedMinutes}:{formattedSeconds}
@@ -57,8 +75,22 @@ export default function VictoryScreen({ audioRef }: VictoryScreenProps) {
 
         {/* Congratulations message */}
         <p className="font-mono text-xl text-foreground/80 animate-in fade-in duration-700 delay-500">
-          Excellent detective work.
+          Odlično detektivsko djelo.
         </p>
+
+        {/* Play Again Button */}
+        <div className="pt-4 animate-in fade-in duration-700 delay-700">
+          <Button
+            onClick={() => resetGameMutation.mutate()}
+            disabled={resetGameMutation.isPending}
+            size="lg"
+            className="gap-2 font-display text-lg px-10 py-6 border-primary/60 hover:bg-primary/20 hover:border-primary shadow-lg shadow-primary/20"
+            variant="outline"
+          >
+            <RotateCcw className="w-5 h-5" />
+            {resetGameMutation.isPending ? "RESETIRANJE..." : "PONOVNO"}
+          </Button>
+        </div>
       </div>
     </div>
   );

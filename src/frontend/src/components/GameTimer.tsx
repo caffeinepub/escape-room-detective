@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { useActor } from "../hooks/useActor";
 
 interface GameTimerProps {
@@ -7,6 +8,8 @@ interface GameTimerProps {
 
 export default function GameTimer({ inline = false }: GameTimerProps) {
   const { actor, isFetching } = useActor();
+  const [localSeconds, setLocalSeconds] = useState<number | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { data: remainingSeconds } = useQuery<bigint>({
     queryKey: ["remainingSeconds"],
@@ -14,7 +17,8 @@ export default function GameTimer({ inline = false }: GameTimerProps) {
       if (!actor) return 0n;
       return actor.getRemainingSeconds();
     },
-    refetchInterval: 1000,
+    // Sync with backend every 5 seconds to correct drift
+    refetchInterval: 5000,
     enabled: !!actor && !isFetching,
   });
 
@@ -24,25 +28,55 @@ export default function GameTimer({ inline = false }: GameTimerProps) {
       if (!actor) return false;
       return actor.isTimerRunning();
     },
-    refetchInterval: 1000,
+    refetchInterval: 5000,
     enabled: !!actor && !isFetching,
   });
 
-  if (!isRunning || remainingSeconds === undefined) {
+  // Sync localSeconds when backend data arrives
+  useEffect(() => {
+    if (remainingSeconds !== undefined) {
+      setLocalSeconds(Number(remainingSeconds));
+    }
+  }, [remainingSeconds]);
+
+  // Local countdown interval - ticks every 1 second precisely
+  useEffect(() => {
+    if (!isRunning) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
+    }
+
+    intervalRef.current = setInterval(() => {
+      setLocalSeconds((prev) => {
+        if (prev === null || prev <= 0) return 0;
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [isRunning]);
+
+  if (!isRunning || localSeconds === null) {
     return null;
   }
 
-  const seconds = Number(remainingSeconds);
-  const minutes = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  const isLowTime = seconds < 300; // Less than 5 minutes
+  const minutes = Math.floor(localSeconds / 60);
+  const secs = localSeconds % 60;
+  const isLowTime = localSeconds < 300; // Less than 5 minutes
 
   // Format with leading zeros for MM:SS
   const formattedMinutes = minutes.toString().padStart(2, "0");
   const formattedSeconds = secs.toString().padStart(2, "0");
 
   if (inline) {
-    // Inline display for header integration
     return (
       <div className="flex items-center border-l-2 border-primary/40 pl-4 ml-2">
         <div
@@ -56,7 +90,6 @@ export default function GameTimer({ inline = false }: GameTimerProps) {
     );
   }
 
-  // Legacy fixed positioning (not used anymore)
   return (
     <div className="fixed top-5 right-8 z-40 px-6 py-4 bg-card/90 backdrop-blur-md border-2 border-primary/40 rounded-lg shadow-xl shadow-primary/20">
       <div className="text-center space-y-1">

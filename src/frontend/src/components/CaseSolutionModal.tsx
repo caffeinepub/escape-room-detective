@@ -48,14 +48,24 @@ export default function CaseSolutionModal({
     enabled: !!actor && open,
   });
 
-  // Shuffle names every time the modal opens
+  // Shuffle names every time the modal opens or when suspects data arrives while open
   useEffect(() => {
-    if (open && !prevOpenRef.current && suspects.length > 0) {
+    const justOpened = open && !prevOpenRef.current;
+    const dataArrivedWhileOpen =
+      open && suspects.length > 0 && shuffledSuspects.length === 0;
+
+    if ((justOpened || dataArrivedWhileOpen) && suspects.length > 0) {
       setShuffledSuspects(shuffleArray(suspects));
       setWrongAttempts(new Set());
     }
+
+    if (!open && prevOpenRef.current) {
+      // Reset shuffled list when modal closes so it reshuffles on next open
+      setShuffledSuspects([]);
+    }
+
     prevOpenRef.current = open;
-  }, [open, suspects]);
+  }, [open, suspects, shuffledSuspects.length]);
 
   const checkSuspectMutation = useMutation({
     mutationFn: async (name: string) => {
@@ -76,29 +86,20 @@ export default function CaseSolutionModal({
         toast.error("-5 MINUTES PENALTY!", {
           description: `${name} is not the culprit. Keep investigating.`,
         });
-        // Add penalty
-        addPenaltyMutation.mutate(300n);
-      }
-      setSelectedName(null);
-    },
-  });
+        // Penalty is already applied by backend in checkSuspectGuess
+        // Just refresh the timer display
+        queryClient.invalidateQueries({ queryKey: ["remainingSeconds"] });
 
-  const addPenaltyMutation = useMutation({
-    mutationFn: async (seconds: bigint) => {
-      if (!actor) throw new Error("Actor not initialized");
-      return actor.addPenalty(seconds);
-    },
-    onSuccess: async () => {
-      queryClient.invalidateQueries({ queryKey: ["remainingSeconds"] });
-
-      // Check if time dropped to 0 or below after penalty
-      if (actor) {
-        const newRemainingSeconds = await actor.getRemainingSeconds();
-        if (Number(newRemainingSeconds) <= 0) {
-          // Trigger defeat by invalidating game phase
-          queryClient.invalidateQueries({ queryKey: ["gamePhase"] });
+        // Check if time dropped to 0 or below after penalty
+        if (actor) {
+          actor.getRemainingSeconds().then((newRemainingSeconds) => {
+            if (Number(newRemainingSeconds) <= 0) {
+              queryClient.invalidateQueries({ queryKey: ["gamePhase"] });
+            }
+          });
         }
       }
+      setSelectedName(null);
     },
   });
 
